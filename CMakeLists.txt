@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.8)
-project(z_server)
+project(ZKL_NetServer)
 
 set(CMAKE_CXX_STANDARD 11)
 
