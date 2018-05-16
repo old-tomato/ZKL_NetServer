@@ -1,0 +1,104 @@
+//
+// Created by zkl on 18-5-6.
+//
+
+#include "ZThreadPool.h"
+
+using namespace zkl_server;
+
+ZThreadPool * ZThreadPool::pool = nullptr;
+
+int ZThreadPool::threadCount = 10;
+int ZThreadPool::jobCount = 0;
+Logger * ZThreadPool::logger = nullptr;
+
+pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
+pthread_cond_t cond = PTHREAD_COND_INITIALIZER;
+
+
+namespace zkl_server{
+    void * threadFunc(void * arg){
+        ZThreadPool * pool = (ZThreadPool *)arg;
+        ThreadJob * job = nullptr;
+        // 轮训查看队列中是否有内容需要操作
+        for(;;){
+            // 进入线程所状态,等待条件锁放开
+            pthread_mutex_lock(&mutex);
+            pthread_cond_wait(&cond , &mutex);
+            if(pool->jobQueue.size() > 0){
+                job = pool->jobQueue.front();
+                pool->jobQueue.pop();
+            }
+            pthread_mutex_unlock(&mutex);
+            if(pool->stopFlag){
+                break;
+            }
+            job->setThreadId(static_cast<int>(pthread_self()));
+            int (*func)(ThreadJob * ) = (int (*)(ThreadJob * ))job->getFunc();
+            int flag = func(job);
+            if(flag < 0){
+                pool->setJob(job);
+            }
+
+            if(pool->jobQueue.size() > 0){
+                pthread_cond_signal(&cond);
+            }
+        }
+    }
+}
+
+
+ZThreadPool & ZThreadPool::getInstance(int count , Logger * log){
+    if(pool != nullptr){
+        return *pool;
+    }
+    pool = new ZThreadPool();
+    if(count > 0){
+        threadCount = count;
+    }
+    logger = log;
+    return *pool;
+}
+
+bool ZThreadPool::startPool(){
+    startFlag = true;
+    for(int x = 0 ; x < threadCount ; ++ x){
+        pthread_t tid;
+        int createFlag = pthread_create( &tid , nullptr , threadFunc , this);
+        if(createFlag == 0){
+            logger->E("create thread error");
+        }else {
+            threadList.push_back(tid);
+        }
+    }
+
+    if(!jobQueue.empty()){
+        pthread_cond_signal(&cond);
+        logger->D("set signal");
+    }
+
+    for(pthread_t tid : threadList){
+        // 阻塞在这里
+        pthread_join(tid , nullptr);
+    }
+}
+
+bool ZThreadPool::stopPool(){
+    stopFlag = true;
+    int flag = pthread_cond_broadcast(&cond);
+    return true;
+}
+
+bool ZThreadPool::setJob(ThreadJob * job){
+    if(job == nullptr){
+        logger->E("set job is null");
+        return false;
+    }
+    jobQueue.push(job);
+    ++ jobCount;
+    if(startFlag){
+        pthread_cond_signal(&cond);
+    }
+    logger->D("set new job , current job count is " + jobCount);
+    return true;
+}

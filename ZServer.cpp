@@ -11,7 +11,8 @@ bool ZServer::serverStop() {
 }
 
 bool ZServer::serverStart() {
-    return false;
+
+    return true;
 }
 
 ZServer::ZServer(string configPath) {
@@ -50,6 +51,7 @@ void ZServer::initLibFunc(){
             initFunctionForServere = (void (*)())dlsym(dl , libInfo->getInitFunction().c_str());
             if(initFunctionForServere){
                 initFunctionForServere();
+                logger.D("calling function : " + libInfo->getInitFunction() + " with module name : " + libInfo->getLibName());
             }else{
                 logger.E("dlsym error with check function, lib name : " + libInfo->getInitFunction() + " " + string(dlerror()));
             }
