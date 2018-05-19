@@ -20,21 +20,21 @@ int main() {
     Logger &logger = Logger::getInstance();
     cout << &logger << endl;
 
-    ZThreadPool &pool = ZThreadPool::getInstance(4 , &logger);
-
-
-    pool.startPool();
-
-    for(int x = 0 ; x < 10 ; ++ x){
-        ThreadJob * threadJob = new ThreadJob((void *)(intptr_t)x , 10 , func);
-        cout << x << endl;
-        pool.setJob(threadJob);
-    }
-
-    sleep(10);
-    cout << "end==================" << endl;
-    // 如果这里沉睡XX秒
-    pool.stopPool();
+//    ZThreadPool &pool = ZThreadPool::getInstance(4 , &logger);
+//
+//
+//    pool.startPool();
+//
+//    for(int x = 0 ; x < 10 ; ++ x){
+//        ThreadJob * threadJob = new ThreadJob((void *)(intptr_t)x , 10 , func);
+//        cout << x << endl;
+//        pool.setJob(threadJob);
+//    }
+//
+//    sleep(10);
+//    cout << "end==================" << endl;
+//    // 如果这里沉睡XX秒
+//    pool.stopPool();
 
     return 0;
 }

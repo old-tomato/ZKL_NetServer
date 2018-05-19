@@ -99,6 +99,6 @@ bool ZThreadPool::setJob(ThreadJob * job){
     if(startFlag){
         pthread_cond_signal(&cond);
     }
-    logger->D("set new job , current job count is " + jobCount);
+    logger->D("set new job , current job count is " + to_string(jobCount));
     return true;
 }

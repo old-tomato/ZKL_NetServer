@@ -7,7 +7,7 @@ set(SOURCE_FILES main.cpp ZServer.cpp ZServer.h
         Dao/LibInfo.cpp Dao/LibInfo.h
         Utils/Logger.cpp Utils/Logger.h
         Utils/ZThreadPool.cpp Utils/ZThreadPool.h
-        Dao/ThreadJob.cpp Dao/ThreadJob.h)
+        Dao/ThreadJob.cpp Dao/ThreadJob.h Dao/DecodeModuleInfo.h Dao/PercolatorModuleInfo.h Dao/ModuleInfo.h Dao/EncodeModuleInfo.h Dao/ServiceModuleInfo.h)
 
 add_executable(z_server ${SOURCE_FILES})
 
