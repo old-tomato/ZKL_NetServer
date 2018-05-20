@@ -32,6 +32,8 @@ using namespace std;
 
 namespace zkl_server {
 
+#define STRERR string(strerror(errno))
+
     class ZServer {
 
         friend int doServer(ThreadJob *job);
@@ -65,6 +67,9 @@ namespace zkl_server {
 
         int currentConn = 0;
 
+        // 初始化表示,读取基本配置是否出错,如果出错就不会启动服务器
+        bool initFlag = true;
+
         Logger &logger = Logger::getInstance();
 
         bool initConfig(string configPath);
@@ -74,7 +79,7 @@ namespace zkl_server {
         /**
          * 调用各个模块的初始化函数信息
          */
-        void initLibFunc();
+        bool initLibFunc();
 
         /**
          * 创建服务器
@@ -82,32 +87,34 @@ namespace zkl_server {
          */
         int createTcpServer();
 
-        bool epollAdd(int epollFd, int fd, uint32_t event = EPOLLIN);
+        bool epollAdd(int epollFd, int fd, uint32_t event = EPOLLET|EPOLLIN);
 
         bool epollRmv(int epollFd, int fd);
 
         void sendWithAccessDenied(int fd , ModuleInfo * moduleInfo);
+
+        bool callLibInitFlag(LoadLibInfo *loadLibInfo);
 
         /**
          * 进行解码操作
          * @param fd
          * @return
          */
-        DecodeModuleInfo withDecode(int fd);
+        int withDecode(int fd , DecodeModuleInfo & decodeModule);
 
         /**
          * 查看是否存在任务模块
          * @param decodeModule
          * @return
          */
-        int checkCmd(DecodeModuleInfo decodeModule);
+        int checkCmd(DecodeModuleInfo & decodeModule);
 
         /**
          * 进行过滤操作
          * @param decodeModule
          * @return
          */
-        PercolatorModuleInfo withPercolator(DecodeModuleInfo decodeModule);
+        int withPercolator(DecodeModuleInfo & decodeModule , PercolatorModuleInfo & percolatorModuleInfo);
 
         /**
          * 处理具体的业务
@@ -115,7 +122,7 @@ namespace zkl_server {
          * @param percolatorModule
          * @return
          */
-        ServiceModuleInfo withServer(DecodeModuleInfo decodeModule , PercolatorModuleInfo percolatorModule);
+        int withServer(DecodeModuleInfo & decodeModule , PercolatorModuleInfo & percolatorModule, ServiceModuleInfo & serviceModuleInfo);
 
         /**
          * 当业务成功处理,并且需要返回时
@@ -136,8 +143,9 @@ namespace zkl_server {
          * @param encodeModuleInfo
          * @return
          */
-        string withEncode(EncodeModuleInfo encodeModuleInfo);
+        EncodeModuleInfo withEncode(const string &sendMessage, const void *sendObj, bool successFlag);
 
+        void sendStr(int fd,EncodeModuleInfo & moduleInfo);
     public:
         virtual ~ZServer();
 
@@ -146,7 +154,6 @@ namespace zkl_server {
         bool serverStart();
 
         bool serverStop();
-
     };
 }
 

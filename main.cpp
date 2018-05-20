@@ -20,6 +20,10 @@ int main() {
     Logger &logger = Logger::getInstance();
     cout << &logger << endl;
 
+    // TODO 这里的位置应该是从命令行参数中传入的
+    ZServer server("/home/zkl/CLionProjects/ZKL_NetServer/cmake-build-debug/config.json");
+    server.serverStart();
+
 //    ZThreadPool &pool = ZThreadPool::getInstance(4 , &logger);
 //
 //

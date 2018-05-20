@@ -27,6 +27,12 @@ namespace zkl_server {
         virtual const string &getErrorMsg() const {
             return errorMsg;
         }
+        virtual void setErrorMsg(string errorMsg){
+            this->errorMsg = errorMsg;
+        }
+        virtual void setAccessFlag(bool accessFlag){
+            this->accessFlag = accessFlag;
+        }
     };
 
 }

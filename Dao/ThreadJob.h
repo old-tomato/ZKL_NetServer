@@ -9,9 +9,9 @@ namespace zkl_server {
     class ThreadJob {
 
     private:
-        void *job;
-        int threadId;
-        int type;
+        void *job = nullptr;
+        int threadId = 0;
+        int type = 0;
         int (*func)(ThreadJob * job) = nullptr;
     public:
         ThreadJob(void *job, int type , int (* func)(ThreadJob *) );

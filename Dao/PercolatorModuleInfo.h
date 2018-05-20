@@ -36,6 +36,14 @@ namespace zkl_server {
         const int getType() const {
             return type;
         }
+
+        void setData(string & content , void * obj , string & errorMsg , bool accessFlag){
+            this->content = content;
+            this->obj = obj;
+            this->errorMsg = errorMsg;
+            this->accessFlag = accessFlag;
+        }
+
     };
 
 }

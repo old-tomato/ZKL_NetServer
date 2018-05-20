@@ -25,6 +25,8 @@ namespace zkl_server {
         int weight = 0;
         // 初始化函数名称,这个函数会在初始化的时候被调用,传入和传出都是void类型,这个字段允许为空
         string initFunction = "";
+        // 业务函数,调用业务时会调用这个函数
+        string workFunction = "";
 
     public:
         // 解码模块
@@ -36,8 +38,8 @@ namespace zkl_server {
         // 业务模块
         static int SERVER_MODULE;
 
-        LibInfo(string libname, string libPath, int libType, int weight, string initFunction) :
-                libName(libname), libPath(libPath) , libType(libType) , weight(weight),initFunction(initFunction){};
+        LibInfo(string libname, string libPath, int libType, int weight, string initFunction, string workFunction) :
+                libName(libname), libPath(libPath) , libType(libType) , weight(weight),initFunction(initFunction),workFunction(workFunction){};
 
         const string &getLibName() const {
                 return libName;
@@ -57,6 +59,10 @@ namespace zkl_server {
 
         const string &getInitFunction() const {
                 return initFunction;
+        }
+
+        const string &getWorkFunction() const {
+            return workFunction;
         }
 
     };

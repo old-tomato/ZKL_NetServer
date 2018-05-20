@@ -34,4 +34,4 @@ void * ThreadJob::getFunc() const{
     return (void *)func;
 }
 
-ThreadJob::ThreadJob(void *job, int threadId, int (* func)(ThreadJob *) ) : job(job), threadId(threadId),func(func) {}
+ThreadJob::ThreadJob(void *job, int type, int (* func)(ThreadJob *) ) : job(job), type(type),func(func) {}

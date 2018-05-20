@@ -17,6 +17,7 @@ namespace zkl_server {
         const void * obj = nullptr;
         string content = "";
         int type = LibInfo::ENCODE_MODULE;
+        bool disConnect = false;
     public:
         const void *getObj() const {
             return obj;
@@ -36,6 +37,18 @@ namespace zkl_server {
 
         const int getType() const {
             return type;
+        }
+
+        const bool isDisConnect() const {
+            return disConnect;
+        }
+
+        void setData(string & content , void * obj , string & errorMsg , bool accessFlag , bool disConnect){
+            this->content = content;
+            this->obj = obj;
+            this->errorMsg = errorMsg;
+            this->accessFlag = accessFlag;
+            this->disConnect = disConnect;
         }
     };
 

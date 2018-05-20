@@ -15,12 +15,12 @@ namespace zkl_server {
     class DecodeModuleInfo : public ModuleInfo{
     private:
         // 解码后数据
-        const string content = "";
+        string content = "";
         // 命令数据
-        const string cmd = "";
+        string cmd = "";
         // 对象地址
-        const void * obj = nullptr;
-        const int type = LibInfo::DECODE_MODULE;
+        void * obj = nullptr;
+        int type = LibInfo::DECODE_MODULE;
 
     public:
 
@@ -39,6 +39,15 @@ namespace zkl_server {
         const int getType() const {
             return type;
         }
+
+        void setInfo(string & content , string & cmd , void * obj, string & errorMsg , bool accessFlag){
+            this->content = content;
+            this->cmd = cmd;
+            this->obj = obj;
+            this->errorMsg = errorMsg;
+            this->accessFlag = accessFlag;
+        }
+
     };
 
 }

@@ -8,6 +8,10 @@
 #include <pthread.h>
 #include <queue>
 #include <list>
+#include <atomic>
+#include <sys/time.h>
+#include <signal.h>
+#include <string.h>
 #include "./Logger.h"
 #include "../Dao/ThreadJob.h"
 
@@ -25,7 +29,7 @@ namespace zkl_server{
 
     private:
         static int threadCount;
-        static int jobCount;
+        atomic_int jobCount;
 
         static ZThreadPool * pool;
 
@@ -37,7 +41,7 @@ namespace zkl_server{
 
         list<pthread_t> threadList;
 
-        queue<ThreadJob *> jobQueue;
+        queue<ThreadJob *>  * jobQueue = nullptr;
 
         ZThreadPool(){};
 
