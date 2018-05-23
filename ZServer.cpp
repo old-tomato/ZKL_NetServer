@@ -437,6 +437,7 @@ bool ZServer::serverStart() {
     }
 
     // 添加服务器文件描述符到EPOLL中
+    // 监听服务器的请求的时候,需要用到水平触发
     bool addFlag = epollAdd(epollFd, sock);
     if (!addFlag) {
         close(sock);
@@ -478,6 +479,7 @@ bool ZServer::serverStart() {
                 }
 
                 // 可能有人连接服务器了
+                // 有人连接服务器的时候,需要使用边缘触发
                 bool addFlag = epollAdd(epollFd, incomingFd , EPOLLET|EPOLLIN);
                 if (!addFlag) {
                     logger.E("epoll add error : " + STRERR);
