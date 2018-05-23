@@ -2,6 +2,7 @@
 // Created by zkl on 18-5-6.
 //
 
+#include <zconf.h>
 #include "ZThreadPool.h"
 
 using namespace zkl_server;
@@ -20,15 +21,20 @@ namespace zkl_server{
         ZThreadPool * pool = (ZThreadPool *)arg;
         // 轮训查看队列中是否有内容需要操作
         for(;;){
+            cout << "job count " << pool->jobCount << endl;
             ThreadJob * job = nullptr;
             // 进入线程所状态,等待条件锁放开
             pthread_mutex_lock(&mutex);
+            cout << "wait" << endl;
             pthread_cond_wait(&cond , &mutex);
             if(pool->jobQueue->size() > 0){
                 job = pool->jobQueue->front();
                 pool->jobQueue->pop();
                 -- pool->jobCount;
                 cout << "job count " << pool->jobCount << "  queue size : " << pool->jobQueue->size() << endl;
+            }else{
+                pthread_mutex_unlock(&mutex);
+                continue;
             }
             pthread_mutex_unlock(&mutex);
             if(pool->stopFlag){
@@ -40,15 +46,13 @@ namespace zkl_server{
             job->setThreadId(static_cast<int>(pthread_self()));
             int (*func)(ThreadJob * ) = (int (*)(ThreadJob * ))job->getFunc();
             int flag = func(job);
-            if(flag < 0){
-                pool->setJob(job);
-            }else{
+//            if(flag < 0){
+//                pool->setJob(job);
+//            }else{
                 delete job;
-            }
+//            }
             cout << "pool server over" << endl;
-            if(pool->jobQueue->size() > 0){
-                pthread_cond_signal(&cond);
-            }
+            pthread_cond_signal(&cond);
             cout << "pool server end" << endl;
         }
     }
@@ -67,27 +71,9 @@ ZThreadPool & ZThreadPool::getInstance(int count , Logger * log){
     return *pool;
 }
 
-//void timerHandler(int signo)
-//{
-//    cout << "timer" << endl;
-//    if(signo == SIGALRM){
-//        pthread_cond_signal(&cond);
-//    }
-//}
-
 bool ZThreadPool::startPool(){
     jobCount = 0;
     startFlag = true;
-
-//    signal(SIGALRM, timerHandler);
-//
-//    struct itimerval timer;
-//    timer.it_value.tv_sec = 1;
-//    timer.it_value.tv_usec = 0;
-//    timer.it_interval.tv_sec = 1;
-//    timer.it_interval.tv_usec = 0;
-//
-//    cout << setitimer(ITIMER_REAL , &timer , nullptr) << errno <<  endl;
 
     for(int x = 0 ; x < threadCount ; ++ x){
         pthread_t tid;

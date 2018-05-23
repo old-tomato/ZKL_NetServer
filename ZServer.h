@@ -20,6 +20,7 @@
 #include <arpa/inet.h>
 #include <unistd.h>
 #include <signal.h>
+#include <fcntl.h>
 #include "Dao/LibInfo.h"
 #include "Utils/Logger.h"
 #include "Dao/DecodeModuleInfo.h"
@@ -87,7 +88,7 @@ namespace zkl_server {
          */
         int createTcpServer();
 
-        bool epollAdd(int epollFd, int fd, uint32_t event = EPOLLET|EPOLLIN);
+        bool epollAdd(int epollFd, int fd, uint32_t event = EPOLLIN);
 
         bool epollRmv(int epollFd, int fd);
 

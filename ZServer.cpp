@@ -407,6 +407,8 @@ void ZServer::sendWithAccessDenied(int fd, ModuleInfo *moduleInfo) {
     sendStr(fd , encodeModuleInfo);
 }
 
+int t_count = 0;
+
 bool ZServer::serverStart() {
 
     if (!initFlag) {
@@ -448,9 +450,11 @@ bool ZServer::serverStart() {
 
     cout << "epoll ready" << endl;
 
+    struct epoll_event evs[10];
+
     for (;;) {
-        struct epoll_event evs[80];
-        int ret = epoll_wait(epollFd, evs, 80, 5000);
+
+        int ret = epoll_wait(epollFd, evs, 10, 5000);
         if (serverStopFlag) {
             logger.D("get signal to exit");
             break;
@@ -472,8 +476,9 @@ bool ZServer::serverStart() {
                     logger.E("accept error with message : " + STRERR);
                     continue;
                 }
+
                 // 可能有人连接服务器了
-                bool addFlag = epollAdd(epollFd, incomingFd);
+                bool addFlag = epollAdd(epollFd, incomingFd , EPOLLET|EPOLLIN);
                 if (!addFlag) {
                     logger.E("epoll add error : " + STRERR);
                     continue;
@@ -481,9 +486,10 @@ bool ZServer::serverStart() {
                 ++currentConn;
                 logger.D("current conn is : " + to_string(currentConn));
             } else {
-                cout << "new come " << fd << endl;
+
                 ThreadJob *threadJob = new ThreadJob((void *) this, fd, doServer);
                 pool.setJob(threadJob);
+
             }
         }
     }
