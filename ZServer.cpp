@@ -26,11 +26,11 @@ int ZServer::createTcpServer() {
     // 绑定
     struct sockaddr_in addr;
     // 设定绑定的端口
-    addr.sin_port = htons(static_cast<uint16_t>(this->port));
+    addr.sin_port = htons(static_cast<uint16_t>(configManager->getPort()));
     // 设定绑定的网络标准
     addr.sin_family = AF_INET;
     // 设定绑定的地址
-    addr.sin_addr.s_addr = inet_addr("0.0.0.0");
+    addr.sin_addr.s_addr = inet_addr(configManager->getServerIp().c_str());
 
     int bindFlag = bind(sock, (struct sockaddr *) &addr, sizeof(addr));
     if (bindFlag != 0) {
@@ -92,7 +92,7 @@ int (*decodeFunction)(string &content, string &cmd, void **obj, string &errorMsg
 
 //int (*decodeFunction)(DecodeModuleInfo *decodeModuleInfo, const char *buf);
 
-int ZServer::withDecode(int fd ,DecodeModuleInfo & moduleInfo) {
+int ZServer::withDecode(int fd, DecodeModuleInfo &moduleInfo) {
     // 获得字符串信息
     // 当前假定没有大文件需要传输
     char buf[10240];
@@ -105,7 +105,7 @@ int ZServer::withDecode(int fd ,DecodeModuleInfo & moduleInfo) {
     }
 
     // 获得之前在配置文件中配置的解码库,调用函数进行处理
-    for (LoadLibInfo *loadLibInfo : decodeLib) {
+    for (ConfigManager::LoadLibInfo *loadLibInfo : configManager->getDecodeLib()) {
         LibInfo *libInfo = loadLibInfo->getLibInfo();
         void *dl = dlopen(libInfo->getLibPath().c_str(), RTLD_NOW);
         if (dl == nullptr) {
@@ -141,9 +141,9 @@ int ZServer::withDecode(int fd ,DecodeModuleInfo & moduleInfo) {
     return 0;
 }
 
-int ZServer::checkCmd(DecodeModuleInfo & decodeModule) {
+int ZServer::checkCmd(DecodeModuleInfo &decodeModule) {
     const string &cmd = decodeModule.getCmd();
-    if(cmd.length() == 0){
+    if (cmd.length() == 0) {
         return UNKNOWN_CMD;
     }
     if (cmd.compare("") == 0) {
@@ -159,9 +159,9 @@ int ZServer::checkCmd(DecodeModuleInfo & decodeModule) {
 int (*percolatorFunction)(string &content, void **obj, string &errorMsg, bool &accessFlag,
                           const string &decodeContent, const void *decodeObj);
 
-int ZServer::withPercolator(DecodeModuleInfo & decodeModule , PercolatorModuleInfo & percolatorModuleInfo) {
+int ZServer::withPercolator(DecodeModuleInfo &decodeModule, PercolatorModuleInfo &percolatorModuleInfo) {
     // TODO 为了支持多个过滤器,这里的逻辑需要修改
-    for (LoadLibInfo *loadLibInfo : percolatorLib) {
+    for (ConfigManager::LoadLibInfo *loadLibInfo : configManager->getPercolatorLib()) {
         LibInfo *libInfo = loadLibInfo->getLibInfo();
         void *dl = dlopen(libInfo->getLibPath().c_str(), RTLD_NOW);
         if (dl == nullptr) {
@@ -169,7 +169,7 @@ int ZServer::withPercolator(DecodeModuleInfo & decodeModule , PercolatorModuleIn
                      libInfo->getLibName());
             continue;
         }
-        if (libInfo->getInitFunction().length() > 0) {
+        if (libInfo->getWorkFunction().length() > 0) {
             percolatorFunction = (int (*)(string &, void **, string &, bool &,
                                           const string &, const void *)) dlsym(dl, libInfo->getWorkFunction().c_str());
             if (percolatorFunction) {
@@ -202,9 +202,10 @@ int (*serviceFunction)(string &content, void **obj, string &errorMsg, bool &acce
                        const string &percolatorContent, const void *percolatorObj,
                        const string &decodeContent, const void *decodeObj);
 
-int ZServer::withServer(DecodeModuleInfo & decodeModule, PercolatorModuleInfo & percolatorModule, ServiceModuleInfo & serviceModuleInfo) {
+int ZServer::withServer(DecodeModuleInfo &decodeModule, PercolatorModuleInfo &percolatorModule,
+                        ServiceModuleInfo &serviceModuleInfo) {
 
-    for (LoadLibInfo *loadLibInfo : percolatorLib) {
+    for (ConfigManager::LoadLibInfo *loadLibInfo : configManager->getServerLib()) {
         LibInfo *libInfo = loadLibInfo->getLibInfo();
         void *dl = dlopen(libInfo->getLibPath().c_str(), RTLD_NOW);
         if (dl == nullptr) {
@@ -212,7 +213,13 @@ int ZServer::withServer(DecodeModuleInfo & decodeModule, PercolatorModuleInfo & 
                      libInfo->getLibName());
             continue;
         }
-        if (libInfo->getInitFunction().length() > 0) {
+        if (libInfo->getWorkFunction().length() > 0 && (
+                loadLibInfo->getLibInfo()->getRoute().empty() || // 如果没有配置路由,进入
+                loadLibInfo->getLibInfo()->getRoute().compare(decodeModule.getRoute()) // 如果路由匹配上了,进入
+        )) {
+
+            cout << "server in" << endl;
+
             serviceFunction = (int (*)(string &content, void **obj, string &errorMsg, bool &accessFlag,
                                        const string &percolatorContent, const void *percolatorObj,
                                        const string &decodeContent, const void *decodeObj)) dlsym(dl,
@@ -256,39 +263,38 @@ void ZServer::sendServerError(int fd, ServiceModuleInfo serviceModuleInfo) {
 void ZServer::sendServer(int fd, ServiceModuleInfo serviceModuleInfo, int type) {
     EncodeModuleInfo moduleInfo;
     if (type == 1) {
-        moduleInfo = move(withEncode(serviceModuleInfo.getContent() , serviceModuleInfo.getObj(),true));
+        moduleInfo = move(withEncode(serviceModuleInfo.getContent(), serviceModuleInfo.getObj(), true));
     } else if (type == 2) {
-        moduleInfo = move(withEncode(serviceModuleInfo.getErrorMsg(), serviceModuleInfo.getObj(),false));
+        moduleInfo = move(withEncode(serviceModuleInfo.getErrorMsg(), serviceModuleInfo.getObj(), false));
     }
-    sendStr(fd , moduleInfo);
+    sendStr(fd, moduleInfo);
 }
 
-void ZServer::sendStr(int fd,EncodeModuleInfo & moduleInfo){
+void ZServer::sendStr(int fd, EncodeModuleInfo &moduleInfo) {
     cout << "sendStr " << fd << endl;
     pthread_mutex_lock(&serverMutex);
     cout << "sendStr in lock " << fd << endl;
     ssize_t sendFlag = send(fd, moduleInfo.getContent().c_str(), moduleInfo.getContent().length(), 0);
-    if(sendFlag == -1){
+    if (sendFlag == -1) {
         logger.E("send error with message : " + STRERR);
     }
-//    if(moduleInfo.isDisConnect()){
-//        epollRmv(epollFd , fd);
-        close(fd);
-//    }
+
+    close(fd);
 
     cout << "send length : " << sendFlag << endl;
     pthread_mutex_unlock(&serverMutex);
     cout << "sendStr unlock " << fd << endl;
 }
 
-int (*encodeFunction)(string &content, void **obj, string &errorMsg, bool &accessFlag, bool & disConnet, const string &sendMessage,
+int (*encodeFunction)(string &content, void **obj, string &errorMsg, bool &accessFlag, bool &disConnet,
+                      const string &sendMessage,
                       const void *sendObj, bool successFlag);
 
 EncodeModuleInfo ZServer::withEncode(const string &sendMessage, const void *sendObj, bool successFlag) {
 
     EncodeModuleInfo encodeModuleInfo;
 
-    LibInfo *libInfo  = encodeLib.back()->getLibInfo();
+    LibInfo *libInfo = configManager->getEncodeLib().back()->getLibInfo();
 
     void *dl = dlopen(libInfo->getLibPath().c_str(), RTLD_NOW);
     if (dl == nullptr) {
@@ -298,8 +304,9 @@ EncodeModuleInfo ZServer::withEncode(const string &sendMessage, const void *send
         return encodeModuleInfo;
     }
     if (libInfo->getInitFunction().length() > 0) {
-        encodeFunction = (int (*)(string &, void **, string &, bool & , bool &, const string &, const void *,bool )) dlsym(dl,
-                                                                                                      libInfo->getWorkFunction().c_str());
+        encodeFunction = (int (*)(string &, void **, string &, bool &, bool &, const string &, const void *,
+                                  bool)) dlsym(dl,
+                                               libInfo->getWorkFunction().c_str());
         if (encodeFunction) {
 
             string content;
@@ -308,11 +315,12 @@ EncodeModuleInfo ZServer::withEncode(const string &sendMessage, const void *send
             bool accessFlag = false;
             bool disConnect = false;
 
-            int flag = encodeFunction(content, &obj, errorMsg, accessFlag, disConnect, sendMessage, sendObj, successFlag);
+            int flag = encodeFunction(content, &obj, errorMsg, accessFlag, disConnect, sendMessage, sendObj,
+                                      successFlag);
 
             if (flag < 0) {
                 logger.D("service module callback error with flag : " + to_string(flag));
-            }else{
+            } else {
                 cout << "encode content : " << content << endl;
                 encodeModuleInfo.setData(content, obj, errorMsg, accessFlag, disConnect);
             }
@@ -337,7 +345,7 @@ namespace zkl_server {
         // 调用解码模块
         // 这里面会调用recv函数获得数据
         DecodeModuleInfo decodeModule;
-        server->withDecode(fd , decodeModule);
+        server->withDecode(fd, decodeModule);
         // 查看是否是命令
         int flag = server->checkCmd(decodeModule);
         if (flag == server->CONNET_END) {
@@ -371,8 +379,8 @@ namespace zkl_server {
         cout << "decode over" << endl;
 
         // 调用过滤器模块
-        PercolatorModuleInfo percolatorModule ;
-        server->withPercolator(decodeModule , percolatorModule);
+        PercolatorModuleInfo percolatorModule;
+        server->withPercolator(decodeModule, percolatorModule);
 
         // 如果是管理员请求,不进行过滤器过滤,直接通过
         if (flag != server->ADMIN_CONNET) {
@@ -403,8 +411,8 @@ namespace zkl_server {
 
 void ZServer::sendWithAccessDenied(int fd, ModuleInfo *moduleInfo) {
 
-    EncodeModuleInfo encodeModuleInfo = move(withEncode(moduleInfo->getErrorMsg() , nullptr , false));
-    sendStr(fd , encodeModuleInfo);
+    EncodeModuleInfo encodeModuleInfo = move(withEncode(moduleInfo->getErrorMsg(), nullptr, false));
+    sendStr(fd, encodeModuleInfo);
 }
 
 int t_count = 0;
@@ -480,13 +488,12 @@ bool ZServer::serverStart() {
 
                 // 可能有人连接服务器了
                 // 有人连接服务器的时候,需要使用边缘触发
-                bool addFlag = epollAdd(epollFd, incomingFd , EPOLLET|EPOLLIN);
+                bool addFlag = epollAdd(epollFd, incomingFd, EPOLLET | EPOLLIN);
                 if (!addFlag) {
                     logger.E("epoll add error : " + STRERR);
                     continue;
                 }
                 ++currentConn;
-                logger.D("current conn is : " + to_string(currentConn));
             } else {
 
                 ThreadJob *threadJob = new ThreadJob((void *) this, fd, doServer);
@@ -508,7 +515,10 @@ ZServer::ZServer(string configPath) {
         initFlag = false;
         return;
     }
-    bool configFlag = initConfig(configPath);
+
+    configManager = ConfigManager::getInstance();
+
+    bool configFlag = configManager->loadConfig(configPath);
     if (!configFlag) {
         // 配置文件初始化出现问题
         logger.E("config init error");
@@ -516,209 +526,12 @@ ZServer::ZServer(string configPath) {
         return;
     }
     // 虽然不知道有没有用,但是会尝试调用每个动态库中设定的初始化函数,或许可以用来初始化数据库的链接操作吧
-    bool flag = initLibFunc();
+    bool flag = configManager->initLibFunction();
     if (initFlag) {
         initFlag = flag;
     }
 }
 
-void (*initFunctionForServere)();
-
-bool ZServer::callLibInitFlag(LoadLibInfo *loadLibInfo) {
-    bool flag = true;
-    // 打开库文件
-    // 到了这里保证所有的都是库都可以找到的文件
-    LibInfo *libInfo = loadLibInfo->getLibInfo();
-    void *dl = dlopen(libInfo->getLibPath().c_str(), RTLD_NOW);
-    if (dl == nullptr) {
-        logger.E("dlopen lib error : " + libInfo->getLibPath() + "  with name : " + libInfo->getLibName());
-        flag = false;
-    }
-    loadLibInfo->setHander(dl);
-    if (libInfo->getInitFunction().length() > 0) {
-        // 打开初始化函数
-        initFunctionForServere = (void (*)()) dlsym(dl, libInfo->getInitFunction().c_str());
-        if (initFunctionForServere) {
-            initFunctionForServere();
-            logger.D("calling function : " + libInfo->getInitFunction() + " with module name : " +
-                     libInfo->getLibName());
-        } else {
-            logger.E("dlsym error with check function, lib name : " + libInfo->getInitFunction() + " " +
-                     string(dlerror()));
-            flag = false;
-        }
-    }
-    return flag;
-}
-
-bool ZServer::initLibFunc() {
-    // TODO 这里的标识表示如果有一个函数的启动失败,就无法启动服务器,这个处理之后需要修改
-    bool flag = true;
-    for (LoadLibInfo *loadLibInfo : decodeLib) {
-        bool callFlag = callLibInitFlag(loadLibInfo);
-        if (!callFlag) {
-            // 暂定虽然不会启动服务器,但是会检查所有配置的函数
-            flag = callFlag;
-            continue;
-        }
-    }
-    for (LoadLibInfo *loadLibInfo : encodeLib) {
-        bool callFlag = callLibInitFlag(loadLibInfo);
-        if (!callFlag) {
-            // 暂定虽然不会启动服务器,但是会检查所有配置的函数
-            flag = callFlag;
-            continue;
-        }
-    }
-    for (LoadLibInfo *loadLibInfo : percolatorLib) {
-        bool callFlag = callLibInitFlag(loadLibInfo);
-        if (!callFlag) {
-            // 暂定虽然不会启动服务器,但是会检查所有配置的函数
-            flag = callFlag;
-            continue;
-        }
-    }
-    for (LoadLibInfo *loadLibInfo : serverLib) {
-        bool callFlag = callLibInitFlag(loadLibInfo);
-        if (!callFlag) {
-            // 暂定虽然不会启动服务器,但是会检查所有配置的函数
-            flag = callFlag;
-            continue;
-        }
-    }
-    return flag;
-}
-
-bool ZServer::initConfig(string configPath) {
-
-    struct stat statBuf;
-    int flag = stat(configPath.c_str(), &statBuf);
-    if (flag == -1) {
-        logger.E("get config file stat error with flag : " + flag);
-        return false;
-    }
-    if (!S_ISREG(statBuf.st_mode)) {
-        logger.E(configPath + " file type is not a file");
-        return false;
-    }
-    long fileSize = statBuf.st_size + 1;
-
-    FILE *file = fopen(configPath.c_str(), "r");
-    if (file == nullptr) {
-        logger.E("open file error");
-        return false;
-    }
-    char *jsonStr = (char *) malloc(static_cast<size_t>(fileSize));
-    memset(jsonStr, 0, fileSize);
-
-    size_t readSize = fread(jsonStr, 1, statBuf.st_size, file);
-    if (readSize <= 0) {
-        logger.E("read file error with read size : " + readSize);
-        return false;
-    }
-
-    fclose(file);
-
-    bool parseFlag = parseJson(jsonStr);
-    if (!parseFlag) {
-        logger.E("parse json error");
-        return false;
-    }
-
-    return true;
-}
-
-bool ZServer::parseJson(const char *json) {
-    // 该函数应该被放在一个类中进行解析
-    cJSON *cjson = cJSON_Parse(json);
-    this->port = cJSON_GetObjectItem(cjson, "port")->valueint;
-    if (this->port <= 0) {
-        logger.E("port set error , use default port 8899");
-        // TODO 这里的具体数字应该被替换成全局变量
-        this->port = 8899;
-    }
-    string logPath = cJSON_GetObjectItem(cjson, "logPath")->valuestring;
-    if (logPath.length() <= 0) {
-        logger.E("log path error , use default file ./zserver.log");
-        logPath = "./zserver.log";
-    }
-    logger.setPath(logPath);
-    cJSON *modules = cJSON_GetObjectItem(cjson, "modules");
-    if (modules == nullptr) {
-        logger.E("get modules size error");
-        return false;
-    }
-    int moduleSize = cJSON_GetArraySize(modules);
-    logger.D("module size is " + to_string(moduleSize));
-    // TODO 现阶段权重不适用
-    logger.D("==============ignore weight================");
-
-    for (int x = 0; x < moduleSize; ++x) {
-        cJSON *module = cJSON_GetArrayItem(modules, x);
-        if (module != nullptr) {
-            char *libName = cJSON_GetObjectItem(module, "libName")->valuestring;
-            char *libPath = cJSON_GetObjectItem(module, "libPath")->valuestring;
-            int libType = cJSON_GetObjectItem(module, "libType")->valueint;
-            char *initFunction = cJSON_GetObjectItem(module, "initFunction")->valuestring;
-            char *workFunction = cJSON_GetObjectItem(module, "workFunction")->valuestring;
-
-            // 检查库的路径以及文件类型是否符合要求
-            struct stat libStat;
-            int statFlag = stat(libPath, &libStat);
-            if (statFlag != 0 || !S_ISREG(libStat.st_mode)) {
-                logger.E("lib stat check error with name : " + string(libName) + "  with path : " + string(libPath));
-                continue;
-            }
-
-            if (strlen(initFunction) == 0 || strlen(workFunction) == 0) {
-                logger.E("lib initFunction or workFunction length is 0");
-                continue;
-            }
-
-            LibInfo *libInfo = new LibInfo(libName, libPath, libType, 0, initFunction, workFunction);
-            LoadLibInfo *loadLibInfo = new LoadLibInfo(libInfo, nullptr);
-            if (libType == LibInfo::DECODE_MODULE) {
-                // 必须存在一个解码模块,可以空实现
-                decodeLib.push_back(loadLibInfo);
-            } else if (libType == LibInfo::ENCODE_MODULE) {
-                // 必须存在一个编码模块.可以空实现
-                encodeLib.push_back(loadLibInfo);
-            } else if (libType == LibInfo::PERCOLATOR_MODULE) {
-                // 必须存在一个过滤器模块,可以空实现
-                percolatorLib.push_back(loadLibInfo);
-            } else if (libType == LibInfo::SERVER_MODULE) {
-                // 必须存在一个业务模块
-                serverLib.push_back(loadLibInfo);
-            }
-            logger.D("get module : " + string(libName));
-        }
-    }
-
-    if (decodeLib.size() == 0 || encodeLib.size() == 0 || percolatorLib.size() == 0 || serverLib.size() == 0) {
-        cout << decodeLib.size() << endl;
-        logger.E("lib size error decodeLib size: " + to_string(decodeLib.size()));
-        logger.E("lib size error encodeLib size: " + to_string(encodeLib.size()));
-        logger.E("lib size error percolatorLib size: " + to_string(percolatorLib.size()));
-        logger.E("lib size error serverLib size: " + to_string(serverLib.size()));
-        return false;
-    }
-    return true;
-}
-
 ZServer::~ZServer() {
 
-}
-
-ZServer::LoadLibInfo::LoadLibInfo(LibInfo *libInfo, void *hander) : libInfo(libInfo), hander(hander) {}
-
-LibInfo *ZServer::LoadLibInfo::getLibInfo() const {
-    return libInfo;
-}
-
-void *ZServer::LoadLibInfo::getHander() const {
-    return hander;
-}
-
-void ZServer::LoadLibInfo::setHander(void *hander) {
-    LoadLibInfo::hander = hander;
 }

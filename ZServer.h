@@ -28,6 +28,7 @@
 #include "Dao/PercolatorModuleInfo.h"
 #include "Dao/ServiceModuleInfo.h"
 #include "Utils/ZThreadPool.h"
+#include "Utils/ConfigManager.h"
 
 using namespace std;
 
@@ -41,30 +42,11 @@ namespace zkl_server {
 
     private:
 
-        class LoadLibInfo {
-        private:
-            LibInfo *libInfo;
-            void *hander = nullptr;
-        public:
-            LoadLibInfo(LibInfo *libInfo, void *hander);
-
-            void setHander(void *hander);
-
-            LibInfo *getLibInfo() const;
-
-            void *getHander() const;
-        };
-
         enum {
             CONNET_END, ERROR_CONNET, ADMIN_CONNET, UNKNOWN_CMD
         };
 
-        int port;
         int epollFd = -1;
-        list<LoadLibInfo *> decodeLib;
-        list<LoadLibInfo *> encodeLib;
-        list<LoadLibInfo *> percolatorLib;
-        list<LoadLibInfo *> serverLib;
 
         int currentConn = 0;
 
@@ -73,14 +55,7 @@ namespace zkl_server {
 
         Logger &logger = Logger::getInstance();
 
-        bool initConfig(string configPath);
-
-        bool parseJson(const char *json);
-
-        /**
-         * 调用各个模块的初始化函数信息
-         */
-        bool initLibFunc();
+        ConfigManager * configManager = nullptr;
 
         /**
          * 创建服务器
@@ -93,8 +68,6 @@ namespace zkl_server {
         bool epollRmv(int epollFd, int fd);
 
         void sendWithAccessDenied(int fd , ModuleInfo * moduleInfo);
-
-        bool callLibInitFlag(LoadLibInfo *loadLibInfo);
 
         /**
          * 进行解码操作

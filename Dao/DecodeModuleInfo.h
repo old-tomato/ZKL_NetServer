@@ -20,6 +20,8 @@ namespace zkl_server {
         string cmd = "";
         // 对象地址
         void * obj = nullptr;
+        // 路由设定,默认情况下是所有都匹配,/就是通配符
+        string route = "/";
         int type = LibInfo::DECODE_MODULE;
 
     public:
@@ -46,6 +48,10 @@ namespace zkl_server {
             this->obj = obj;
             this->errorMsg = errorMsg;
             this->accessFlag = accessFlag;
+        }
+
+        const string getRoute(){
+            return route;
         }
 
     };

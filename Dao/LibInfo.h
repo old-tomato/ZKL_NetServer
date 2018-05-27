@@ -21,12 +21,14 @@ namespace zkl_server {
         string libPath;
         // 库的类型，如果类型是-1存在问题,必填
         int libType = -1;
-        // 权重,当多个模块相同时,使用JSON文件中的顺序作为标准,上限为INT类型,该字段现阶段无效
+        // 权重,当多个模块相同时,使用JSON文件中的顺序作为标准,上限为INT类型
         int weight = 0;
         // 初始化函数名称,这个函数会在初始化的时候被调用,传入和传出都是void类型,这个字段允许为空
         string initFunction = "";
         // 业务函数,调用业务时会调用这个函数
         string workFunction = "";
+        // 路由名称,现在只允许在server模块中存在
+        string route = "";
 
     public:
         // 解码模块
@@ -65,6 +67,13 @@ namespace zkl_server {
             return workFunction;
         }
 
+        const string &getRoute() const{
+            return this->route;
+        }
+
+        void setRoute(const string &route){
+            this->route = route;
+        }
     };
 
 }

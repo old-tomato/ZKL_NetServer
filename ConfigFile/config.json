@@ -1,0 +1,47 @@
+{
+  "note":"所有的note节点不会被解析",
+  "port":9001,
+  "logPath":"./zserver2.log",
+  "serverIp":"127.0.0.1",
+  "modules":[
+    {
+      "libName":"decodeModule",
+      "libPath":"../TestLib/libDecodeModule.so",
+      "libType":1,
+      "initFunction":"initFunc",
+      "workFunction":"decode",
+      "note":"这是一个解码节点,note字段是用来进行添加注释的,这个节点不会被解析",
+      "note1":"weight 权重字段开始使用,范围0-INX_MAX,0为最小"
+    },
+    {
+      "libName":"encodeModule",
+      "libPath":"../TestLib/libEncodeModule.so",
+      "libType":2,
+      "initFunction":"initFunc",
+      "workFunction":"encode"
+    },
+    {
+      "libName":"percolatorModule",
+      "libPath":"../TestLib/libPercolatorModule.so",
+      "libType":3,
+      "initFunction":"initFunc",
+      "workFunction":"percolator"
+    },
+    {
+      "libName":"serverModule",
+      "libPath":"../TestLib/libServerModule.so",
+      "libType":4,
+      "initFunction":"initFunc",
+      "workFunction":"server",
+      "route":"/",
+      "note":"现在只允许server模块中存在路由节点,默认情况下是所有都匹配,/就是通配符,在服务模块中,路由是可以不存在的"
+    },
+    {
+      "libName":"serverModule2",
+      "libPath":"../TestLib/libServerModule.so",
+      "libType":4,
+      "initFunction":"initFunc",
+      "workFunction":"server"
+    }
+  ]
+}
