@@ -6,39 +6,25 @@
 
 using namespace zkl_server;
 
-int func(ThreadJob * job){
-    cout << "x " << (int)(intptr_t )job->getJob() << endl;
-    for(int x = 0 ; x < (int)(intptr_t )job->getJob() ; ++ x){
-        sleep((1));
-        cout << job->getThreadId() << "     " << (int)(intptr_t )job->getJob() << endl;
+// 下期的任务目标
+// 1. 让每一个种模块类都有一个管理类
+// 2. EPOLL中的所有操作都应该放在子线程中,防止出现堵塞,所以这需要开启另一个线程池
+// 3. 线程池修改为不需要锁的模型
+
+int main(int argc , char * argv[]) {
+    std::cout << "Hello, World! " << std::endl;
+
+    if(argc != 2){
+        cout << "argv count error " << endl;
+        return -1;
     }
-    return 0;
-}
 
-int main() {
-    std::cout << "Hello, World!" << std::endl;
     Logger &logger = Logger::getInstance();
-    cout << &logger << endl;
 
-    // TODO 这里的位置应该是从命令行参数中传入的
-    ZServer server("/home/zkl/CLionProjects/ZKL_NetServer/config.json");
+    char * logPath = argv[1];
+
+    ZServer server(logPath);
     server.serverStart();
-
-//    ZThreadPool &pool = ZThreadPool::getInstance(4 , &logger);
-//
-//
-//    pool.startPool();
-//
-//    for(int x = 0 ; x < 10 ; ++ x){
-//        ThreadJob * threadJob = new ThreadJob((void *)(intptr_t)x , 10 , func);
-//        cout << x << endl;
-//        pool.setJob(threadJob);
-//    }
-//
-//    sleep(10);
-//    cout << "end==================" << endl;
-//    // 如果这里沉睡XX秒
-//    pool.stopPool();
 
     return 0;
 }

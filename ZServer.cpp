@@ -146,11 +146,11 @@ int ZServer::checkCmd(DecodeModuleInfo &decodeModule) {
     if (cmd.length() == 0) {
         return UNKNOWN_CMD;
     }
-    if (cmd.compare("") == 0) {
+    if (cmd == "") {
         return CONNET_END;
-    } else if (cmd.compare("") == 0) {
+    } else if (cmd == "") {
         return ERROR_CONNET;
-    } else if (cmd.compare("") == 0) {
+    } else if (cmd == "") {
         return ADMIN_CONNET;
     }
     return UNKNOWN_CMD;
@@ -414,8 +414,6 @@ void ZServer::sendWithAccessDenied(int fd, ModuleInfo *moduleInfo) {
     EncodeModuleInfo encodeModuleInfo = move(withEncode(moduleInfo->getErrorMsg(), nullptr, false));
     sendStr(fd, encodeModuleInfo);
 }
-
-int t_count = 0;
 
 bool ZServer::serverStart() {
 
