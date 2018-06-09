@@ -12,8 +12,12 @@
 #include <sys/stat.h>
 #include <string.h>
 #include <dlfcn.h>
-#include "Logger.h"
+#include "../Utils/Logger.h"
 #include "../Dao/LibInfo.h"
+#include "DecodeModuleManager.h"
+#include "PercolatorModuleManager.h"
+#include "ServiceModuleManager.h"
+#include "EncodeModuleManager.h"
 
 using namespace std;
 
@@ -23,32 +27,15 @@ using namespace std;
 namespace zkl_server {
     // TODO 这个类本来应该是内部类的,但是现在由于友元函数的问题放在外面,这点需要调整
     class ConfigManager {
-    public:
-        class LoadLibInfo {
-        private:
-            LibInfo *libInfo;
-            void *hander = nullptr;
-        public:
-            LoadLibInfo(LibInfo *libInfo, void *hander);
-
-            void setHander(void *hander);
-
-            LibInfo *getLibInfo() const;
-
-            void *getHander() const;
-
-            ~LoadLibInfo();
-        };
-
     private:
 
         enum {
             CONNET_END, ERROR_CONNET, ADMIN_CONNET, UNKNOWN_CMD
         };
-        list<LoadLibInfo *> decodeLib;
-        list<LoadLibInfo *> encodeLib;
-        list<LoadLibInfo *> percolatorLib;
-        list<LoadLibInfo *> serverLib;
+        list<LibInfo *> decodeLib;
+        list<LibInfo *> encodeLib;
+        list<LibInfo *> percolatorLib;
+        list<LibInfo *> serverLib;
 
         ConfigManager() = default;;
 
@@ -63,6 +50,11 @@ namespace zkl_server {
         string serverIp;
 
         string logPath;
+
+        DecodeModuleManager * decodeManager = nullptr;
+        PercolatorModuleManager * percolatorManager = nullptr;
+        ServiceModuleManager * serviceManager = nullptr;
+        EncodeModuleManager * encodeManager = nullptr;
 
         /**
          * 服务器的最大的连接数
@@ -86,11 +78,9 @@ namespace zkl_server {
          */
         bool sortLib();
 
-        bool callLibInitFlag(LoadLibInfo *loadLibInfo);
-
     public:
 
-        friend bool sortFunc(ConfigManager::LoadLibInfo *info1, ConfigManager::LoadLibInfo *info2);
+        friend bool sortFunc(LibInfo *info1, LibInfo *info2);
 
         static ConfigManager *getInstance();
 
@@ -106,17 +96,19 @@ namespace zkl_server {
 
         int getMaxListen() const ;
 
-        const list<LoadLibInfo *> &getDecodeLib() const;
-
-        const list<LoadLibInfo *> &getEncodeLib() const;
-
-        const list<LoadLibInfo *> &getPercolatorLib() const;
-
-        const list<LoadLibInfo *> &getServerLib() const;
-
         const string &getServerIp() const;
 
+        DecodeModuleManager * getDecodeModuleManager();
+
         ~ConfigManager();
+
+        DecodeModuleManager *getDecodeManager();
+
+        PercolatorModuleManager *getPercolatorManager();
+
+        ServiceModuleManager *getServiceManager();
+
+        EncodeModuleManager *getEncodeManager();
     };
 }
 

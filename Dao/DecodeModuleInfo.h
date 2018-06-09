@@ -7,6 +7,7 @@
 
 #include <string>
 #include "ModuleInfo.h"
+#include "LibInfo.h"
 
 using namespace std;
 
@@ -17,7 +18,7 @@ namespace zkl_server {
         // 解码后数据
         string content = "";
         // 命令数据
-        string cmd = "";
+        int cmd = 0;
         // 对象地址
         void * obj = nullptr;
         // 路由设定,默认情况下是所有都匹配,/就是通配符
@@ -30,7 +31,7 @@ namespace zkl_server {
             return content;
         }
 
-        const string &getCmd() const {
+        const int getCmd() const {
             return cmd;
         }
 
@@ -42,11 +43,20 @@ namespace zkl_server {
             return type;
         }
 
-        void setInfo(string & content , string & cmd , void * obj, string & errorMsg , bool accessFlag){
+        void setCmd(int cmd){
+            this->cmd = cmd;
+        }
+
+        void setInfo(string & content , int cmd , void * obj, string & errorMsg , bool accessFlag){
             this->content = content;
             this->cmd = cmd;
             this->obj = obj;
             this->errorMsg = errorMsg;
+            this->accessFlag = accessFlag;
+        }
+
+        void setCmdAccessFlag(int cmd , bool accessFlag){
+            this->cmd = cmd;
             this->accessFlag = accessFlag;
         }
 

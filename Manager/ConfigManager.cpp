@@ -157,18 +157,15 @@ bool ConfigManager::parseConfig() {
 
             LibInfo *libInfo = new LibInfo(libName, libPath, libType, weight, initFunction, workFunction);
 
-            // 现在handler没有起到任何作用
-            LoadLibInfo *loadLibInfo = new LoadLibInfo(libInfo, nullptr);
-
             if (libType == LibInfo::DECODE_MODULE) {
                 // 必须存在一个解码模块,可以空实现
-                decodeLib.push_back(loadLibInfo);
+                decodeLib.push_back(libInfo);
             } else if (libType == LibInfo::ENCODE_MODULE) {
                 // 必须存在一个编码模块.可以空实现
-                encodeLib.push_back(loadLibInfo);
+                encodeLib.push_back(libInfo);
             } else if (libType == LibInfo::PERCOLATOR_MODULE) {
                 // 必须存在一个过滤器模块,可以空实现
-                percolatorLib.push_back(loadLibInfo);
+                percolatorLib.push_back(libInfo);
             } else if (libType == LibInfo::SERVER_MODULE) {
                 // 必须存在一个业务模块
                 // 增加一个操作,读取路由
@@ -177,8 +174,8 @@ bool ConfigManager::parseConfig() {
                 if(routeObj != nullptr){
                     route = routeObj->valuestring;
                 }
-                loadLibInfo->getLibInfo()->setRoute(route);
-                serverLib.push_back(loadLibInfo);
+                libInfo->setRoute(route);
+                serverLib.push_back(libInfo);
             }
             logger->D("get module : " + string(libName));
         }
@@ -192,77 +189,79 @@ bool ConfigManager::parseConfig() {
         logger->E("lib size error serverLib size: " + to_string(serverLib.size()));
         return false;
     }
+
+    decodeManager = new DecodeModuleManager(this->logger , decodeLib);
+    percolatorManager = new PercolatorModuleManager(this->logger , percolatorLib);
+    serviceManager = new ServiceModuleManager(this->logger , serverLib);
+    encodeManager = new EncodeModuleManager(this->logger , encodeLib);
+
     return true;
 }
 
 bool ConfigManager::initLibFunction(){
     // 调用所有的初始化函数
-    // TODO 这里的标识表示如果有一个函数的启动失败,就无法启动服务器,这个处理之后需要修改
     bool flag = true;
-    for (LoadLibInfo *loadLibInfo : decodeLib) {
-        bool callFlag = callLibInitFlag(loadLibInfo);
-        if (!callFlag) {
-            // 暂定虽然不会启动服务器,但是会检查所有配置的函数
-            flag = callFlag;
-            continue;
-        }
+    flag = decodeManager->doInitFunction();
+    if(!flag){
+        logger->E("decode init function error");
+        exit(-1);
     }
-    for (LoadLibInfo *loadLibInfo : encodeLib) {
-        bool callFlag = callLibInitFlag(loadLibInfo);
-        if (!callFlag) {
-            // 暂定虽然不会启动服务器,但是会检查所有配置的函数
-            flag = callFlag;
-            continue;
-        }
+
+    flag = percolatorManager->doInitFunction();
+    if(!flag){
+        logger->E("percolator init function error");
+        exit(-1);
     }
-    for (LoadLibInfo *loadLibInfo : percolatorLib) {
-        bool callFlag = callLibInitFlag(loadLibInfo);
-        if (!callFlag) {
-            // 暂定虽然不会启动服务器,但是会检查所有配置的函数
-            flag = callFlag;
-            continue;
-        }
+
+    flag = serviceManager->doInitFunction();
+    if(!flag){
+        logger->E("service init function error");
+        exit(-1);
     }
-    for (LoadLibInfo *loadLibInfo : serverLib) {
-        bool callFlag = callLibInitFlag(loadLibInfo);
-        if (!callFlag) {
-            // 暂定虽然不会启动服务器,但是会检查所有配置的函数
-            flag = callFlag;
-            continue;
-        }
+
+    flag = encodeManager->doInitFunction();
+    if(!flag){
+        logger->E("encode init function error");
+        exit(-1);
     }
+
+//    for (LoadLibInfo *loadLibInfo : decodeLib) {
+//        bool callFlag = callLibInitFlag(loadLibInfo);
+//        if (!callFlag) {
+//            // 暂定虽然不会启动服务器,但是会检查所有配置的函数
+//            flag = callFlag;
+//            continue;
+//        }
+//    }
+//    for (LoadLibInfo *loadLibInfo : encodeLib) {
+//        bool callFlag = callLibInitFlag(loadLibInfo);
+//        if (!callFlag) {
+//            // 暂定虽然不会启动服务器,但是会检查所有配置的函数
+//            flag = callFlag;
+//            continue;
+//        }
+//    }
+//    for (LoadLibInfo *loadLibInfo : percolatorLib) {
+//        bool callFlag = callLibInitFlag(loadLibInfo);
+//        if (!callFlag) {
+//            // 暂定虽然不会启动服务器,但是会检查所有配置的函数
+//            flag = callFlag;
+//            continue;
+//        }
+//    }
+//    for (LoadLibInfo *loadLibInfo : serverLib) {
+//        bool callFlag = callLibInitFlag(loadLibInfo);
+//        if (!callFlag) {
+//            // 暂定虽然不会启动服务器,但是会检查所有配置的函数
+//            flag = callFlag;
+//            continue;
+//        }
+//    }
     return flag;
 }
 
-bool ConfigManager::callLibInitFlag(LoadLibInfo *loadLibInfo) {
-    bool flag = true;
-    // 打开库文件
-    // 到了这里保证所有的都是库都可以找到的文件
-    LibInfo *libInfo = loadLibInfo->getLibInfo();
-    void *dl = dlopen(libInfo->getLibPath().c_str(), RTLD_NOW);
-    if (dl == nullptr) {
-        logger->E("dlopen lib error : " + libInfo->getLibPath() + "  with name : " + libInfo->getLibName());
-        flag = false;
-    }
-    loadLibInfo->setHander(dl);
-    if (libInfo->getInitFunction().length() > 0) {
-        // 打开初始化函数
-        initFunctionForServere = (void (*)()) dlsym(dl, libInfo->getInitFunction().c_str());
-        if (initFunctionForServere) {
-            initFunctionForServere();
-            logger->D("calling function : " + libInfo->getInitFunction() + " with module name : " +
-                     libInfo->getLibName());
-        } else {
-            logger->E("dlsym error with check function, lib name : " + libInfo->getInitFunction() + " " +
-                     string(dlerror()));
-            flag = false;
-        }
-    }
-    return flag;
-}
-
-bool sortFunc(ConfigManager::LoadLibInfo * info1 , ConfigManager::LoadLibInfo * info2){
-    return info1->getLibInfo()->getWeight() >= info2->getLibInfo()->getWeight();
+bool sortFunc(LibInfo *info1, LibInfo *info2){
+    return info1->getWeight() >= info2->getWeight();
 }
 
 bool ConfigManager::sortLib() {
@@ -285,30 +284,34 @@ ConfigManager::~ConfigManager() {
     if (configBuf != nullptr) {
         delete configBuf;
     }
-    if (!decodeLib.empty()) {
-        for (LoadLibInfo *info : decodeLib) {
-            delete info;
-            info = nullptr;
-        }
-    }
-    if (!encodeLib.empty()) {
-        for (LoadLibInfo *info : encodeLib) {
-            delete info;
-            info = nullptr;
-        }
-    }
-    if (!percolatorLib.empty()) {
-        for (LoadLibInfo *info : percolatorLib) {
-            delete info;
-            info = nullptr;
-        }
-    }
-    if (!serverLib.empty()) {
-        for (LoadLibInfo *info : serverLib) {
-            delete info;
-            info = nullptr;
-        }
-    }
+    delete decodeManager;
+    delete percolatorManager;
+    delete serviceManager;
+    delete encodeManager;
+//    if (!decodeLib.empty()) {
+//        for (LoadLibInfo *info : decodeLib) {
+//            delete info;
+//            info = nullptr;
+//        }
+//    }
+//    if (!encodeLib.empty()) {
+//        for (LoadLibInfo *info : encodeLib) {
+//            delete info;
+//            info = nullptr;
+//        }
+//    }
+//    if (!percolatorLib.empty()) {
+//        for (LoadLibInfo *info : percolatorLib) {
+//            delete info;
+//            info = nullptr;
+//        }
+//    }
+//    if (!serverLib.empty()) {
+//        for (LoadLibInfo *info : serverLib) {
+//            delete info;
+//            info = nullptr;
+//        }
+//    }
 }
 
 int ConfigManager::getPort() const {
@@ -319,48 +322,29 @@ int ConfigManager::getMaxListen() const{
     return maxListen;
 }
 
-const list<ConfigManager::LoadLibInfo *> &ConfigManager::getDecodeLib() const {
-    return decodeLib;
-}
-
-const list<ConfigManager::LoadLibInfo *> &ConfigManager::getEncodeLib() const {
-    return encodeLib;
-}
-
-const list<ConfigManager::LoadLibInfo *> &ConfigManager::getPercolatorLib() const {
-    return percolatorLib;
-}
-
-const list<ConfigManager::LoadLibInfo *> &ConfigManager::getServerLib() const {
-    return serverLib;
-}
-
 const string &ConfigManager::getServerIp() const {
     return serverIp;
 }
 
-ConfigManager::LoadLibInfo::LoadLibInfo(LibInfo *libInfo, void *hander) : libInfo(libInfo), hander(hander) {}
 
-LibInfo *ConfigManager::LoadLibInfo::getLibInfo() const {
-    return libInfo;
+DecodeModuleManager * ConfigManager::getDecodeModuleManager(){
+    return this->decodeManager;
 }
 
-void *ConfigManager::LoadLibInfo::getHander() const {
-    return hander;
+DecodeModuleManager *ConfigManager::getDecodeManager() {
+    return decodeManager;
 }
 
-void ConfigManager::LoadLibInfo::setHander(void *hander) {
-    LoadLibInfo::hander = hander;
+PercolatorModuleManager *ConfigManager::getPercolatorManager() {
+    return percolatorManager;
 }
 
-ConfigManager::LoadLibInfo::~LoadLibInfo() {
-    if (libInfo != nullptr) {
-        delete libInfo;
-        libInfo = nullptr;
-    }
-    if (hander != nullptr) {
-        // TODO handler暂时没有被使用
-    }
+ServiceModuleManager *ConfigManager::getServiceManager() {
+    return serviceManager;
+}
+
+EncodeModuleManager *ConfigManager::getEncodeManager() {
+    return encodeManager;
 }
 
 

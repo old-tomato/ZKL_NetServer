@@ -28,7 +28,7 @@
 #include "Dao/PercolatorModuleInfo.h"
 #include "Dao/ServiceModuleInfo.h"
 #include "Utils/ZThreadPool.h"
-#include "Utils/ConfigManager.h"
+#include "Manager/ConfigManager.h"
 
 using namespace std;
 
@@ -41,11 +41,6 @@ namespace zkl_server {
         friend int doServer(ThreadJob *job);
 
     private:
-
-        enum {
-            CONNET_END, ERROR_CONNET, ADMIN_CONNET, UNKNOWN_CMD
-        };
-
         enum {NORMAL_MESSAGE , ERROR_MASSAGE};
 
         int epollFd = -1;
@@ -72,35 +67,6 @@ namespace zkl_server {
         void sendWithAccessDenied(int fd , ModuleInfo * moduleInfo);
 
         /**
-         * 进行解码操作
-         * @param fd
-         * @return
-         */
-        int withDecode(int fd , DecodeModuleInfo & decodeModule);
-
-        /**
-         * 查看是否存在任务模块
-         * @param decodeModule
-         * @return
-         */
-        int checkCmd(DecodeModuleInfo & decodeModule);
-
-        /**
-         * 进行过滤操作
-         * @param decodeModule
-         * @return
-         */
-        int withPercolator(DecodeModuleInfo & decodeModule , PercolatorModuleInfo & percolatorModuleInfo);
-
-        /**
-         * 处理具体的业务
-         * @param decodeModule
-         * @param percolatorModule
-         * @return
-         */
-        int withServer(DecodeModuleInfo & decodeModule , PercolatorModuleInfo & percolatorModule, ServiceModuleInfo & serviceModuleInfo);
-
-        /**
          * 当业务成功处理,并且需要返回时
          * @param serviceModuleInfo
          */
@@ -113,13 +79,6 @@ namespace zkl_server {
         void sendServerError(int fd , ServiceModuleInfo serviceModuleInfo);
 
         void sendServer(int fd , ServiceModuleInfo serviceModuleInfo , int type);
-
-        /**
-         * 将编码模块中的数据变成字符串
-         * @param encodeModuleInfo
-         * @return
-         */
-        EncodeModuleInfo withEncode(const string &sendMessage, const void *sendObj, bool successFlag);
 
         void sendStr(int fd,EncodeModuleInfo & moduleInfo);
     public:

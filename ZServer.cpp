@@ -90,170 +90,6 @@ void sigServerStop(int signal) {
     }
 }
 
-int (*decodeFunction)(string &content, string &cmd, void **obj, string &errorMsg, bool &accessFlag, const char *buf);
-
-//int (*decodeFunction)(DecodeModuleInfo *decodeModuleInfo, const char *buf);
-
-int ZServer::withDecode(int fd, DecodeModuleInfo &moduleInfo) {
-    // 获得字符串信息
-    // 当前假定没有大文件需要传输
-    char buf[10240];
-    memset(buf, 0, sizeof(buf));
-    ssize_t len = recv(fd, buf, sizeof(buf), 0);
-
-    logger.D("recv data , len : " + len);
-    if (len < 0) {
-        logger.E("recv error with message : " + STRERR);
-    }
-
-    // 获得之前在配置文件中配置的解码库,调用函数进行处理
-    for (ConfigManager::LoadLibInfo *loadLibInfo : configManager->getDecodeLib()) {
-        LibInfo *libInfo = loadLibInfo->getLibInfo();
-        void *dl = dlopen(libInfo->getLibPath().c_str(), RTLD_NOW);
-        if (dl == nullptr) {
-            logger.E("decode dlopen lib error : " + libInfo->getLibPath() + "  with name : " + libInfo->getLibName());
-            continue;
-        }
-        if (libInfo->getWorkFunction().length() > 0) {
-            decodeFunction = (int (*)(string &, string &, void **, string &, bool &, const char *)) dlsym(dl,
-                                                                                                          libInfo->getWorkFunction().c_str());
-            if (decodeFunction) {
-                string content;
-                string cmd;
-                void *obj = nullptr;
-                string errorMsg;
-                bool accessFlag = false;
-
-                int flag = decodeFunction(content, cmd, &obj, errorMsg, accessFlag, buf);
-                if (flag < 0) {
-                    logger.D("decode module callback error with flag : " + to_string(flag));
-                    continue;
-                }
-
-                moduleInfo.setInfo(content, cmd, obj, errorMsg, accessFlag);
-                cout << "access flag is : " + to_string(accessFlag) << endl;
-            } else {
-                logger.E("decode dlsym error with check function, lib name : " + libInfo->getWorkFunction() + " " +
-                         string(dlerror()));
-                continue;
-            }
-        }
-    }
-
-    return 0;
-}
-
-int ZServer::checkCmd(DecodeModuleInfo &decodeModule) {
-    const string &cmd = decodeModule.getCmd();
-    if (cmd.length() == 0) {
-        return UNKNOWN_CMD;
-    }
-    if (cmd == "") {
-        return CONNET_END;
-    } else if (cmd == "") {
-        return ERROR_CONNET;
-    } else if (cmd == "") {
-        return ADMIN_CONNET;
-    }
-    return UNKNOWN_CMD;
-}
-
-int (*percolatorFunction)(string &content, void **obj, string &errorMsg, bool &accessFlag,
-                          const string &decodeContent, const void *decodeObj);
-
-int ZServer::withPercolator(DecodeModuleInfo &decodeModule, PercolatorModuleInfo &percolatorModuleInfo) {
-    // TODO 为了支持多个过滤器,这里的逻辑需要修改
-    for (ConfigManager::LoadLibInfo *loadLibInfo : configManager->getPercolatorLib()) {
-        LibInfo *libInfo = loadLibInfo->getLibInfo();
-        void *dl = dlopen(libInfo->getLibPath().c_str(), RTLD_NOW);
-        if (dl == nullptr) {
-            logger.E("percolator dlopen lib error : " + libInfo->getLibPath() + "  with name : " +
-                     libInfo->getLibName());
-            continue;
-        }
-        if (libInfo->getWorkFunction().length() > 0) {
-            percolatorFunction = (int (*)(string &, void **, string &, bool &,
-                                          const string &, const void *)) dlsym(dl, libInfo->getWorkFunction().c_str());
-            if (percolatorFunction) {
-                // TODO 为了能够照顾多个过滤器使用,这里或许可以改成具体的数据从过滤器中获得
-                string content;
-                void *obj = nullptr;
-                string errorMsg;
-                bool accessFlag = false;
-
-                int flag = percolatorFunction(content, &obj, errorMsg, accessFlag, decodeModule.getContent(),
-                                              decodeModule.getObj());
-                if (flag < 0) {
-                    logger.D("percolator module callback error with flag : " + to_string(flag));
-                    continue;
-                }
-
-                percolatorModuleInfo.setData(content, obj, errorMsg, accessFlag);
-
-            } else {
-                logger.E("percolator dlsym error with check function, lib name : " + libInfo->getWorkFunction() + " " +
-                         string(dlerror()));
-                continue;
-            }
-        }
-    }
-    return 0;
-}
-
-int (*serviceFunction)(string &content, void **obj, string &errorMsg, bool &accessFlag,
-                       const string &percolatorContent, const void *percolatorObj,
-                       const string &decodeContent, const void *decodeObj);
-
-int ZServer::withServer(DecodeModuleInfo &decodeModule, PercolatorModuleInfo &percolatorModule,
-                        ServiceModuleInfo &serviceModuleInfo) {
-
-    for (ConfigManager::LoadLibInfo *loadLibInfo : configManager->getServerLib()) {
-        LibInfo *libInfo = loadLibInfo->getLibInfo();
-        void *dl = dlopen(libInfo->getLibPath().c_str(), RTLD_NOW);
-        if (dl == nullptr) {
-            logger.E("service dlopen lib error : " + libInfo->getLibPath() + "  with name : " +
-                     libInfo->getLibName());
-            continue;
-        }
-        if (libInfo->getWorkFunction().length() > 0 && (
-                loadLibInfo->getLibInfo()->getRoute().empty() || // 如果没有配置路由,进入
-                loadLibInfo->getLibInfo()->getRoute().compare(decodeModule.getRoute()) // 如果路由匹配上了,进入
-        )) {
-
-            cout << "server in" << endl;
-
-            serviceFunction = (int (*)(string &content, void **obj, string &errorMsg, bool &accessFlag,
-                                       const string &percolatorContent, const void *percolatorObj,
-                                       const string &decodeContent, const void *decodeObj)) dlsym(dl,
-                                                                                                  libInfo->getWorkFunction().c_str());
-            if (serviceFunction) {
-
-                string content;
-                void *obj = nullptr;
-                string errorMsg;
-                bool accessFlag = false;
-
-                int flag = serviceFunction(content, &obj, errorMsg, accessFlag,
-                                           percolatorModule.getContent(), percolatorModule.getObj(),
-                                           decodeModule.getContent(), decodeModule.getObj());
-                if (flag < 0) {
-                    logger.D("service module callback error with flag : " + to_string(flag));
-                    continue;
-                }
-
-                serviceModuleInfo.setData(content, obj, errorMsg, accessFlag);
-
-            } else {
-                logger.E("service dlsym error with check function, lib name : " + libInfo->getWorkFunction() + " " +
-                         string(dlerror()));
-                continue;
-            }
-        }
-    }
-
-    return 0;
-}
-
 void ZServer::sendServerSuccess(int fd, ServiceModuleInfo serviceModuleInfo) {
     sendServer(fd, move(serviceModuleInfo), NORMAL_MESSAGE);
 }
@@ -265,9 +101,9 @@ void ZServer::sendServerError(int fd, ServiceModuleInfo serviceModuleInfo) {
 void ZServer::sendServer(int fd, ServiceModuleInfo serviceModuleInfo, int type) {
     EncodeModuleInfo moduleInfo;
     if (type == NORMAL_MESSAGE) {
-        moduleInfo = move(withEncode(serviceModuleInfo.getContent(), serviceModuleInfo.getObj(), true));
+        configManager->getEncodeManager()->withEncode(serviceModuleInfo.getContent(), serviceModuleInfo.getObj(), true, moduleInfo);
     } else if (type == ERROR_MASSAGE) {
-        moduleInfo = move(withEncode(serviceModuleInfo.getErrorMsg(), serviceModuleInfo.getObj(), false));
+        configManager->getEncodeManager()->withEncode(serviceModuleInfo.getErrorMsg(), serviceModuleInfo.getObj(), false, moduleInfo);
     }
     sendStr(fd, moduleInfo);
 }
@@ -288,52 +124,6 @@ void ZServer::sendStr(int fd, EncodeModuleInfo &moduleInfo) {
     cout << "sendStr unlock " << fd << endl;
 }
 
-int (*encodeFunction)(string &content, void **obj, string &errorMsg, bool &accessFlag, bool &disConnet,
-                      const string &sendMessage,
-                      const void *sendObj, bool successFlag);
-
-EncodeModuleInfo ZServer::withEncode(const string &sendMessage, const void *sendObj, bool successFlag) {
-
-    EncodeModuleInfo encodeModuleInfo;
-
-    LibInfo *libInfo = configManager->getEncodeLib().back()->getLibInfo();
-
-    void *dl = dlopen(libInfo->getLibPath().c_str(), RTLD_NOW);
-    if (dl == nullptr) {
-        logger.E("encode dlopen lib error : " + libInfo->getLibPath() + "  with name : " +
-                 libInfo->getLibName());
-        // TODO 如果处理出错,需要返回什么?
-        return encodeModuleInfo;
-    }
-    if (libInfo->getInitFunction().length() > 0) {
-        encodeFunction = (int (*)(string &, void **, string &, bool &, bool &, const string &, const void *,
-                                  bool)) dlsym(dl,
-                                               libInfo->getWorkFunction().c_str());
-        if (encodeFunction) {
-
-            string content;
-            void *obj = nullptr;
-            string errorMsg;
-            bool accessFlag = false;
-            bool disConnect = false;
-
-            int flag = encodeFunction(content, &obj, errorMsg, accessFlag, disConnect, sendMessage, sendObj,
-                                      successFlag);
-
-            if (flag < 0) {
-                logger.D("service module callback error with flag : " + to_string(flag));
-            } else {
-                cout << "encode content : " << content << endl;
-                encodeModuleInfo.setData(content, obj, errorMsg, accessFlag, disConnect);
-            }
-        } else {
-            logger.E("encode dlsym error with check function, lib name : " + libInfo->getWorkFunction() + " " +
-                     string(dlerror()));
-        }
-    }
-    return encodeModuleInfo;
-}
-
 namespace zkl_server {
 
     int doServer(ThreadJob *job) {
@@ -347,21 +137,20 @@ namespace zkl_server {
         // 调用解码模块
         // 这里面会调用recv函数获得数据
         DecodeModuleInfo decodeModule;
-        server->withDecode(fd, decodeModule);
+        server->configManager->getDecodeModuleManager()->withDecode(fd, decodeModule);
         // 查看是否是命令
-        int flag = server->checkCmd(decodeModule);
-        if (flag == server->CONNET_END) {
+        if (decodeModule.getCmd() == ModuleInfo::CONNET_END) {
             server->logger.D("check cmd : connet_end");
             server->epollRmv(server->epollFd, fd);
             close(fd);
             return 0;
 
-        } else if (flag == server->ERROR_CONNET) {
+        } else if (decodeModule.getCmd() == ModuleInfo::ERROR_CONNET) {
             server->logger.D("check cmd : error_connet");
             // 这个连接是错误的,不需要在进行处理
             return 0;
 
-        } else if (flag == server->UNKNOWN_CMD) {
+        } else if (decodeModule.getCmd() == ModuleInfo::UNKNOWN_CMD) {
             server->logger.D("check cmd : unknown_cmd");
             // 未知命令,就认为这个请求是有问题的,不做任何处理
             // TODO 暂时注释
@@ -382,10 +171,10 @@ namespace zkl_server {
 
         // 调用过滤器模块
         PercolatorModuleInfo percolatorModule;
-        server->withPercolator(decodeModule, percolatorModule);
+        server->configManager->getPercolatorManager()->withPercolator(decodeModule, percolatorModule);
 
         // 如果是管理员请求,不进行过滤器过滤,直接通过
-        if (flag != server->ADMIN_CONNET) {
+        if (decodeModule.getCmd() != ModuleInfo::ADMIN_CONNET) {
             if (!percolatorModule.isAccessFlag()) {
                 // 不允许连接,需要返回拒绝命令,同时断开连接
                 server->sendWithAccessDenied(fd, &percolatorModule);
@@ -397,7 +186,7 @@ namespace zkl_server {
 
         // 调用业务模块,注意:业务处理中是否通过这个标志必须设置为true
         ServiceModuleInfo serviceModuleInfo;
-        server->withServer(decodeModule, percolatorModule, serviceModuleInfo);
+        server->configManager->getServiceManager()->withServer(decodeModule, percolatorModule, serviceModuleInfo);
 
         if (serviceModuleInfo.isAccessFlag()) {
             // 编码准备发回
@@ -412,8 +201,8 @@ namespace zkl_server {
 }
 
 void ZServer::sendWithAccessDenied(int fd, ModuleInfo *moduleInfo) {
-
-    EncodeModuleInfo encodeModuleInfo = move(withEncode(moduleInfo->getErrorMsg(), nullptr, false));
+    EncodeModuleInfo encodeModuleInfo;
+    configManager->getEncodeManager()->withEncode(moduleInfo->getErrorMsg(), nullptr, false ,encodeModuleInfo);
     sendStr(fd, encodeModuleInfo);
 }
 

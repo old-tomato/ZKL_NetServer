@@ -7,6 +7,7 @@
 
 #include <string>
 #include "ModuleInfo.h"
+#include "LibInfo.h"
 
 using namespace std;
 

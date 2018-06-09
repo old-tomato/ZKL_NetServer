@@ -20,6 +20,14 @@ namespace zkl_server {
         // 解码后数据
         string errorMsg = "";
     public:
+        /**
+         * 命令参数.用于控制是否需要继续执行
+         */
+        enum {
+            CONNET_END, ERROR_CONNET, ADMIN_CONNET, UNKNOWN_CMD
+        };
+
+
         virtual bool isAccessFlag() const {
             return accessFlag;
         }

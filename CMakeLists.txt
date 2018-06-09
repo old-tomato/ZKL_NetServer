@@ -12,7 +12,9 @@ set(SOURCE_FILES main.cpp ZServer.cpp ZServer.h
         Dao/PercolatorModuleInfo.h
         Dao/ModuleInfo.h
         Dao/EncodeModuleInfo.h
-        Dao/ServiceModuleInfo.h Utils/ConfigManager.cpp Utils/ConfigManager.h)
+        Dao/ServiceModuleInfo.h
+        Manager/ConfigManager.cpp Manager/ConfigManager.h
+        Manager/DecodeModuleManager.cpp Manager/DecodeModuleManager.h Manager/ModuleManager.cpp Manager/ModuleManager.h Manager/PercolatorModuleManager.cpp Manager/PercolatorModuleManager.h Manager/ServiceModuleManager.cpp Manager/ServiceModuleManager.h Manager/EncodeModuleManager.cpp Manager/EncodeModuleManager.h)
 
 add_executable(z_server ${SOURCE_FILES})
 

@@ -1,6 +1,6 @@
 {
   "note":"所有的note开头的节点不会被解析",
-  "port":9001,
+  "port":9002,
   "logPath":"./zserver2.log",
   "serverIp":"127.0.0.1",
   "maxListen":500,

@@ -9,6 +9,7 @@ using namespace zkl_server;
 // 下期的任务目标
 // 1. 让每一个种模块类都有一个管理类
 // 2. 线程池修改为不需要锁的模型
+// 3. 日志类的写入感觉过于频繁了
 
 int main(int argc , char * argv[]) {
     std::cout << "Hello, World! " << std::endl;
