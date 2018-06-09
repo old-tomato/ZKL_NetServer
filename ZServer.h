@@ -46,6 +46,8 @@ namespace zkl_server {
             CONNET_END, ERROR_CONNET, ADMIN_CONNET, UNKNOWN_CMD
         };
 
+        enum {NORMAL_MESSAGE , ERROR_MASSAGE};
+
         int epollFd = -1;
 
         int currentConn = 0;

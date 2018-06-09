@@ -23,6 +23,9 @@ int ZServer::createTcpServer() {
         return -1;
     }
 
+    // 设定为非阻塞模式,防止accept出阻塞
+    fcntl(sock , F_SETFL , O_NONBLOCK);
+
     // 绑定
     struct sockaddr_in addr;
     // 设定绑定的端口
@@ -39,8 +42,7 @@ int ZServer::createTcpServer() {
         return -1;
     }
 
-    // TODO 需要在JSON配置中增加配置最大的连接数的功能
-    int listenFlag = listen(sock, 500);
+    int listenFlag = listen(sock, this->configManager->getMaxListen());
     if (listenFlag == -1) {
         logger.E("listen failed with message : " + STRERR);
         return -1;
@@ -253,18 +255,18 @@ int ZServer::withServer(DecodeModuleInfo &decodeModule, PercolatorModuleInfo &pe
 }
 
 void ZServer::sendServerSuccess(int fd, ServiceModuleInfo serviceModuleInfo) {
-    sendServer(fd, move(serviceModuleInfo), 1);
+    sendServer(fd, move(serviceModuleInfo), NORMAL_MESSAGE);
 }
 
 void ZServer::sendServerError(int fd, ServiceModuleInfo serviceModuleInfo) {
-    sendServer(fd, move(serviceModuleInfo), 2);
+    sendServer(fd, move(serviceModuleInfo), ERROR_MASSAGE);
 }
 
 void ZServer::sendServer(int fd, ServiceModuleInfo serviceModuleInfo, int type) {
     EncodeModuleInfo moduleInfo;
-    if (type == 1) {
+    if (type == NORMAL_MESSAGE) {
         moduleInfo = move(withEncode(serviceModuleInfo.getContent(), serviceModuleInfo.getObj(), true));
-    } else if (type == 2) {
+    } else if (type == ERROR_MASSAGE) {
         moduleInfo = move(withEncode(serviceModuleInfo.getErrorMsg(), serviceModuleInfo.getObj(), false));
     }
     sendStr(fd, moduleInfo);
@@ -437,6 +439,7 @@ bool ZServer::serverStart() {
         return false;
     }
 
+    // 这个值已经没有更多的意义了,理论上只需要大于0就可以了,但是为了一定的兼容性,这里还是赋值1024
     epollFd = epoll_create(1024);
     if (epollFd == -1) {
         return false;
@@ -451,6 +454,7 @@ bool ZServer::serverStart() {
     }
 
     // 准备线程池
+    // TODO 这里的线程池数量也需要可以在配置文件中配置
     ZThreadPool &pool = ZThreadPool::getInstance(50, &logger);
 
     pool.startPool();
@@ -460,7 +464,7 @@ bool ZServer::serverStart() {
     struct epoll_event evs[10];
 
     for (;;) {
-
+        // TODO 这里的epoll监听数量和间隔时间也需要能够在配置文件中配置
         int ret = epoll_wait(epollFd, evs, 10, 5000);
         if (serverStopFlag) {
             logger.D("get signal to exit");

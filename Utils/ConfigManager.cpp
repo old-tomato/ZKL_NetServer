@@ -80,6 +80,10 @@ bool ConfigManager::loadConfig(string configPath) {
     return true;
 }
 
+/**
+ * 统一解析json配置文件中的内容
+ * @return
+ */
 bool ConfigManager::parseConfig() {
     cJSON *root = cJSON_Parse(configBuf);
     if (root == nullptr) {
@@ -105,6 +109,13 @@ bool ConfigManager::parseConfig() {
     if (this->serverIp.length() == 0) {
         this->serverIp = "127.0.0.1";
         logger->E("serverIp error , use default ip 127.0.0.1");
+    }
+
+    cJSON *maxListenObj = cJSON_GetObjectItem(root, "maxListen");
+    if(maxListenObj != nullptr){
+        this->maxListen = (maxListenObj->valueint > 0 ? maxListenObj->valueint : 10);
+    }else{
+        logger->E("get max listen error use default value 10");
     }
 
     cJSON *modules = cJSON_GetObjectItem(root, "modules");
@@ -302,6 +313,10 @@ ConfigManager::~ConfigManager() {
 
 int ConfigManager::getPort() const {
     return port;
+}
+
+int ConfigManager::getMaxListen() const{
+    return maxListen;
 }
 
 const list<ConfigManager::LoadLibInfo *> &ConfigManager::getDecodeLib() const {

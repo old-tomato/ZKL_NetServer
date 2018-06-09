@@ -1,8 +1,10 @@
 {
-  "note":"所有的note节点不会被解析",
+  "note":"所有的note开头的节点不会被解析",
   "port":9001,
   "logPath":"./zserver2.log",
   "serverIp":"127.0.0.1",
+  "maxListen":500,
+  "noteListen":"maxListen表示服务器同时监听的最大连接数",
   "modules":[
     {
       "libName":"decodeModule",

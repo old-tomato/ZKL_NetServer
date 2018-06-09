@@ -65,6 +65,11 @@ namespace zkl_server {
         string logPath;
 
         /**
+         * 服务器的最大的连接数
+         */
+        int maxListen = 10;
+
+        /**
          *  读取配置文件内容到内存中
          */
         bool loadConfigToBuf(string configPath);
@@ -98,6 +103,8 @@ namespace zkl_server {
         bool initLibFunction();
 
         int getPort() const;
+
+        int getMaxListen() const ;
 
         const list<LoadLibInfo *> &getDecodeLib() const;
 
