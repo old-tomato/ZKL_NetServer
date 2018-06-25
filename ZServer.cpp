@@ -243,18 +243,16 @@ bool ZServer::serverStart() {
     }
 
     // 准备线程池
-    // TODO 这里的线程池数量也需要可以在配置文件中配置
-    ZThreadPool &pool = ZThreadPool::getInstance(50, &logger);
+    ZThreadPool &pool = ZThreadPool::getInstance(configManager->getThreadCount(), &logger);
 
     pool.startPool();
 
     cout << "epoll ready" << endl;
 
-    struct epoll_event evs[10];
+    struct epoll_event evs[configManager->getEpollMaxEvents()];
 
     for (;;) {
-        // TODO 这里的epoll监听数量和间隔时间也需要能够在配置文件中配置
-        int ret = epoll_wait(epollFd, evs, 10, 5000);
+        int ret = epoll_wait(epollFd, evs, configManager->getEpollMaxEvents(), configManager->getEpollTimeOut());
         if (serverStopFlag) {
             logger.D("get signal to exit");
             break;

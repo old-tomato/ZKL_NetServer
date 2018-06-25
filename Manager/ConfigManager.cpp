@@ -126,6 +126,30 @@ bool ConfigManager::parseConfig() {
     int moduleSize = cJSON_GetArraySize(modules);
     logger->D("module size is " + to_string(moduleSize));
 
+    cJSON *threadCountObj = cJSON_GetObjectItem(root,"threadCount");
+    if(threadCountObj == nullptr){
+        logger->E("thread count is null , use default count : " + to_string(this->threadCount));
+    }else{
+        threadCount = threadCountObj->valueint;
+        logger->D("thread count is set : " + to_string(threadCount));
+    }
+
+    cJSON * epollMaxEventObj = cJSON_GetObjectItem(root,"epollMaxEvents");
+    if(epollMaxEventObj == nullptr){
+        logger->E("epollMaxEvents count is null , use default count : " + to_string(this->epollMaxEvents));
+    }else{
+        epollMaxEvents = epollMaxEventObj->valueint;
+        logger->D("epollMaxEvents count is set : " + to_string(epollMaxEvents));
+    }
+
+    cJSON * epollTimeOutObj = cJSON_GetObjectItem(root,"epollTimeOut");
+    if(epollTimeOutObj == nullptr){
+        logger->E("epollTimeOut count is null , use default count : " + to_string(this->epollTimeOut));
+    }else{
+        epollTimeOut = epollTimeOutObj->valueint;
+        logger->D("epollTimeOut count is set : " + to_string(epollTimeOut));
+    }
+
     // 权重开始被使用
     for (int x = 0; x < moduleSize; ++x) {
         cJSON *module = cJSON_GetArrayItem(modules, x);
@@ -224,39 +248,6 @@ bool ConfigManager::initLibFunction(){
         logger->E("encode init function error");
         exit(-1);
     }
-
-//    for (LoadLibInfo *loadLibInfo : decodeLib) {
-//        bool callFlag = callLibInitFlag(loadLibInfo);
-//        if (!callFlag) {
-//            // 暂定虽然不会启动服务器,但是会检查所有配置的函数
-//            flag = callFlag;
-//            continue;
-//        }
-//    }
-//    for (LoadLibInfo *loadLibInfo : encodeLib) {
-//        bool callFlag = callLibInitFlag(loadLibInfo);
-//        if (!callFlag) {
-//            // 暂定虽然不会启动服务器,但是会检查所有配置的函数
-//            flag = callFlag;
-//            continue;
-//        }
-//    }
-//    for (LoadLibInfo *loadLibInfo : percolatorLib) {
-//        bool callFlag = callLibInitFlag(loadLibInfo);
-//        if (!callFlag) {
-//            // 暂定虽然不会启动服务器,但是会检查所有配置的函数
-//            flag = callFlag;
-//            continue;
-//        }
-//    }
-//    for (LoadLibInfo *loadLibInfo : serverLib) {
-//        bool callFlag = callLibInitFlag(loadLibInfo);
-//        if (!callFlag) {
-//            // 暂定虽然不会启动服务器,但是会检查所有配置的函数
-//            flag = callFlag;
-//            continue;
-//        }
-//    }
     return flag;
 }
 
@@ -288,30 +279,6 @@ ConfigManager::~ConfigManager() {
     delete percolatorManager;
     delete serviceManager;
     delete encodeManager;
-//    if (!decodeLib.empty()) {
-//        for (LoadLibInfo *info : decodeLib) {
-//            delete info;
-//            info = nullptr;
-//        }
-//    }
-//    if (!encodeLib.empty()) {
-//        for (LoadLibInfo *info : encodeLib) {
-//            delete info;
-//            info = nullptr;
-//        }
-//    }
-//    if (!percolatorLib.empty()) {
-//        for (LoadLibInfo *info : percolatorLib) {
-//            delete info;
-//            info = nullptr;
-//        }
-//    }
-//    if (!serverLib.empty()) {
-//        for (LoadLibInfo *info : serverLib) {
-//            delete info;
-//            info = nullptr;
-//        }
-//    }
 }
 
 int ConfigManager::getPort() const {
@@ -345,6 +312,18 @@ ServiceModuleManager *ConfigManager::getServiceManager() {
 
 EncodeModuleManager *ConfigManager::getEncodeManager() {
     return encodeManager;
+}
+
+int ConfigManager::getThreadCount() const {
+    return threadCount;
+}
+
+int ConfigManager::getEpollMaxEvents() const {
+    return epollMaxEvents;
+}
+
+int ConfigManager::getEpollTimeOut() const {
+    return epollTimeOut;
 }
 
 

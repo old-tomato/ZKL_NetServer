@@ -51,6 +51,10 @@ namespace zkl_server {
 
         string logPath;
 
+        int threadCount = 10;
+        int epollMaxEvents = 5;
+        int epollTimeOut = 5000;
+
         DecodeModuleManager * decodeManager = nullptr;
         PercolatorModuleManager * percolatorManager = nullptr;
         ServiceModuleManager * serviceManager = nullptr;
@@ -109,6 +113,12 @@ namespace zkl_server {
         ServiceModuleManager *getServiceManager();
 
         EncodeModuleManager *getEncodeManager();
+
+        int getThreadCount() const;
+
+        int getEpollMaxEvents() const;
+
+        int getEpollTimeOut() const;
     };
 }
 
