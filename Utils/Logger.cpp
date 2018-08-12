@@ -154,6 +154,7 @@ void Logger::writeLog(int level , string message ){
         pthread_mutex_lock(&lock);
         fwrite(message.c_str() , 1 , message.length() , ef);
         pthread_mutex_unlock(&lock);
+        fflush(ef);
 
     }else{
         if(!checkFile()){
@@ -163,5 +164,6 @@ void Logger::writeLog(int level , string message ){
         pthread_mutex_lock(&lock);
         fwrite(message.c_str() , 1 , message.length() , file);
         pthread_mutex_unlock(&lock);
+        fflush(file);
     }
 }
