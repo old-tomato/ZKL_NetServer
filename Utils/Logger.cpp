@@ -44,22 +44,7 @@ void Logger::crushWrite(string message){
 }
 
 void Logger::setPath(string path) {
-    this->logPath = path;
-    // 尝试去打开文件
-    FILE * f = fopen(logPath.c_str() , "w+");
-
-    if(f == nullptr){
-        if(!clearFlag){
-            fclose(f);
-            f = fopen(logPath.c_str() , "a");
-        }
-    }
-
-    if(f == nullptr){
-        crushWrite("warning : open file error with clearFlag : " + clearFlag);
-    }
-
-    this->file = f;
+    this->logDirPath = path;
 }
 
 bool Logger::checkFile() {
@@ -101,9 +86,9 @@ void Logger::setClearFlag(bool clearFlag) {
             fclose(this->file);
         }
         if(clearFlag){
-            file = fopen(logPath.c_str() , "w+");
+            file = fopen(logDirPath.c_str() , "w+");
         }else{
-            file = fopen(logPath.c_str() , "a");
+            file = fopen(logDirPath.c_str() , "a");
         }
     }
     bool checkFlag = checkFile();
@@ -153,17 +138,73 @@ void Logger::writeLog(int level , string message ){
         }
         pthread_mutex_lock(&lock);
         fwrite(message.c_str() , 1 , message.length() , ef);
-        pthread_mutex_unlock(&lock);
         fflush(ef);
+        pthread_mutex_unlock(&lock);
 
     }else{
+        changeFilePointer();
         if(!checkFile()){
             crushWrite("crush write : " + message);
             return;
         }
         pthread_mutex_lock(&lock);
         fwrite(message.c_str() , 1 , message.length() , file);
-        pthread_mutex_unlock(&lock);
         fflush(file);
+        pthread_mutex_unlock(&lock);
     }
+}
+
+string Logger::createFileNameWithTime(){
+    time_t t;
+    time(&t);
+    tm * tmPoint = localtime(&t);
+    int currentYear = 1900 + tmPoint->tm_year;
+    int currentMonth = tmPoint->tm_mon;
+    int currentDay = tmPoint->tm_mday;
+    return "Log-" + to_string(currentYear) + "-" + to_string(currentMonth) + "-" + to_string(currentDay) + ".log";
+}
+
+bool Logger::changeFilePointer(){
+    if(this->file == nullptr){
+        fileFullName = this->logDirPath + createFileNameWithTime();
+        // 打开文件
+        FILE * f = fopen(fileFullName.c_str() , "a+");
+        if(f != nullptr && clearFlag){
+            fclose(f);
+            f = nullptr;
+        }
+        if(f == nullptr){
+            f = fopen(fileFullName.c_str() , "w+");
+        }
+        if(f != nullptr){
+            this->file = f;
+        }
+    }else{
+        if(lastFileFullName.length() == 0){
+            lastFileFullName = fileFullName;
+        }else if(lastFileFullName != fileFullName){
+            // 如果之前写日志的文件和现在不同,需要关闭当前的文件描述符,重新创建新的文件
+            if(this->file != nullptr){
+                fclose(this->file);
+            }
+            FILE * f = fopen(this->fileFullName.c_str() , "a+");
+            if(f != nullptr && clearFlag){
+                fclose(f);
+                f = nullptr;
+            }
+            if(f == nullptr){
+                f = fopen(fileFullName.c_str() , "w+");
+            }
+            if(f != nullptr){
+                this->file = f;
+            }
+        }
+    }
+
+    if(this->file == nullptr){
+        cout << "open log file error : " << this->fileFullName << endl;
+        return false;
+    }
+
+    return true;
 }

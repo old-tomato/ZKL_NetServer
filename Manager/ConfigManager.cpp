@@ -90,11 +90,16 @@ bool ConfigManager::parseConfig() {
         logger->E("parse config error at root");
         return false;
     }
-    // 第一个先读取log的日志位置
-    logPath = cJSON_GetObjectItem(root, "logPath")->valuestring;
+    // 读取日志文件所在目录的路径
+    cJSON *logDirObj = cJSON_GetObjectItem(root, "logDirPath");
+    if(logDirObj == nullptr){
+        cout << "get log dir error" << endl;
+        return false;
+    }
+    logPath = logDirObj->valuestring;
     if (logPath.length() <= 0) {
-        logger->E("log path error , use default file ./zserver.log");
-        logPath = "./zserver.log";
+        logger->E("log path error , use default file ./");
+        logPath = "./";
     }
     logger->setPath(logPath);
 

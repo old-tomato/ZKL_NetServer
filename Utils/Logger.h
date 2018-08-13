@@ -9,6 +9,7 @@
 #include <iostream>
 #include <stdio.h>
 #include <pthread.h>
+#include <time.h>
 
 using namespace std;
 
@@ -32,7 +33,7 @@ namespace zkl_server{
 
         static Logger * logger;
         // 文件位置
-        string logPath = "";
+        string logDirPath = "";
         // 清理标志,如果设定为true,将会在下一次写入的时候将上次写入的内容完全清空
         bool clearFlag = false;
         // 调试标志,如果打开,所有写在文件中的语句都会在控制台中打印,默认打开
@@ -42,6 +43,9 @@ namespace zkl_server{
 
         // 如果正常的日志文件不能够写入,将会写入在这个特殊的文件里面
         FILE* ef = nullptr;
+
+        string fileFullName = "";
+        string lastFileFullName = "";
 
         Logger();
 
@@ -54,6 +58,12 @@ namespace zkl_server{
         void writeLog(int level , string message);
 
         string createLine(int level , string message , string file , int line);
+
+        // 根据系统时间生成日志文件名
+        string createFileNameWithTime();
+
+        // 每次进行打印文件之前,都需要判断当前的文件指针是否指在了需要的文件上
+        bool changeFilePointer();
 
     public:
         static Logger & getInstance();

@@ -1,7 +1,8 @@
 {
   "note":"所有的note开头的节点不会被解析",
   "port":9003,
-  "logPath":"./zserver2.log",
+  "logDirPath":"./",
+  "logDirPathNote":"日志文件所在路径的目录",
   "serverIp":"127.0.0.1",
   "maxListen":500,
   "noteListen":"maxListen表示服务器同时监听的最大连接数",
